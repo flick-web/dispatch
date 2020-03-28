@@ -1,5 +1,7 @@
 # github.com/flick-web/dispatch
 
+[![](https://img.shields.io/badge/godoc-reference-5272B4.svg)](https://godoc.org/github.com/flick-web/dispatch)
+
 Dispatch is a not-too-complicated framework meant for creating super quick and easy JSON APIs. Error handling, CORS, JSON parsing, and more are all handled out of the box.
 
 ## Basic Usage
