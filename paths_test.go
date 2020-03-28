@@ -3,7 +3,7 @@ package dispatch_test
 import (
 	"testing"
 
-	"github.com/olafal0/dispatch"
+	"github.com/flick-web/dispatch"
 )
 
 func TestPathMatching(t *testing.T) {

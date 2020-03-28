@@ -16,15 +16,6 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-// ErrorBadRequest represents an error from a malformed request.
-var ErrorBadRequest = errors.New("Bad request")
-
-// ErrorNotFound represents a 404 error.
-var ErrorNotFound = errors.New("Path not found")
-
-// ErrorInternal represents some unexpected internal error.
-var ErrorInternal = errors.New("Internal error")
-
 // Context represents data about the endpoint call, such as path variables, the
 // calling user, and so on.
 type Context struct {

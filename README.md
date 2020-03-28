@@ -1,6 +1,6 @@
-# github.com/olafal0/dispatch
+# github.com/flick-web/dispatch
 
-Dispatch is a not-too-complicated framework meant for creating super quick and easy JSON APIs. Error handling, CORS, JSON parsing, and more are all handled out of the box—even user management and authentication!
+Dispatch is a not-too-complicated framework meant for creating super quick and easy JSON APIs. Error handling, CORS, JSON parsing, and more are all handled out of the box.
 
 ## Basic Usage
 
@@ -14,7 +14,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/olafal0/dispatch"
+	"github.com/flick-web/dispatch"
 )
 
 func rootHandler(ctx *dispatch.Context) string {
@@ -67,6 +67,6 @@ The `api.AddEndpoint` method also allows adding middleware hooks. These hooks ar
 
 ## Known Issues/Disclaimer
 
-User management and authentication is very simplistic and untested. This shouldn't be used in any sort of production environment, and shouldn't be considered secure. Additionally, access control headers allow a hardcoded value of `*` for the origin, and only specific content types.
+Access control headers allow a hardcoded value of `*` for the origin, and only specific content types.
 
 Dispatch was created for a specific purpose, so there are many parts of the library that are too inflexible for many use cases.

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/olafal0/dispatch"
+	"github.com/flick-web/dispatch"
 )
 
 func rootHandler(ctx *dispatch.Context) string {

@@ -1,4 +1,4 @@
-module github.com/olafal0/dispatch
+module github.com/flick-web/dispatch
 
 go 1.14
 
