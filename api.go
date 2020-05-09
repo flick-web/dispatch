@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"runtime/debug"
 
+	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -17,12 +19,18 @@ type Claims struct {
 }
 
 // Context represents data about the endpoint call, such as path variables, the
-// calling user, and so on.
+// calling user, and requests and responses.
 type Context struct {
 	// Request is the original http request.
 	Request *http.Request
 	// Writer is the original response writer.
 	Writer http.ResponseWriter
+
+	// LambdaRequest is the original request for LambdaProxy requests.
+	LambdaRequest *events.APIGatewayProxyRequest
+	// LambdaResponse is the constructed response object for LambdaProxy requests.
+	LambdaResponse *events.APIGatewayProxyResponse
+
 	// PathVars is the map of path variable names to values.
 	PathVars PathVars
 	Claims   *Claims
@@ -43,6 +51,19 @@ func (api *API) MatchEndpoint(method, path string) (*Endpoint, PathVars) {
 		}
 	}
 	return nil, nil
+}
+
+// GetMethodsForPath returns the list of valid methods for a specified path
+// (for use in OPTIONS requests).
+func (api *API) GetMethodsForPath(path string) []string {
+	methods := make([]string, 0)
+	for _, endpt := range api.Endpoints {
+		match := endpt.pathMatcher.MatchPath(path)
+		if match {
+			methods = append(methods, endpt.pathMatcher.Method)
+		}
+	}
+	return methods
 }
 
 // Call sends the input to the endpoint and returns the result.

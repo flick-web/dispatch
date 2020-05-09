@@ -55,3 +55,24 @@ func (a *APIPath) Match(method, path string) (pathVars PathVars, ok bool) {
 	}
 	return pathVars, true
 }
+
+// MatchPath tests an APIPath against a path string, and returns true if the
+// path matches.
+func (a *APIPath) MatchPath(path string) bool {
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) != len(a.PathParts) {
+		return false
+	}
+
+	for i, p := range parts {
+		apiPart := a.PathParts[i]
+		isPathVar := len(apiPart) > 1 && apiPart[0] == '{' && apiPart[len(apiPart)-1] == '}'
+		if !isPathVar && p != apiPart {
+			return false
+		}
+	}
+	return true
+}

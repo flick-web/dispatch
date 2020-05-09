@@ -10,6 +10,14 @@ import (
 func TestEndpoints(t *testing.T) {
 	api := API{}
 	api.AddEndpoint("GET/test", testEndpointHandler)
+	api.AddEndpoint("PUT/test", testEndpointHandler)
+	api.AddEndpoint("DELETE/tests", testEndpointHandler)
+	api.AddEndpoint("DELETE/test/{id}", testEndpointHandler)
+
+	methods := api.GetMethodsForPath("/test")
+	if (methods[0] != "GET" && methods[0] != "PUT") || (methods[1] != "GET" && methods[1] != "PUT") {
+		t.Errorf("Expected GET, PUT, got %s\n", strings.Join(methods, ", "))
+	}
 
 	_, err := api.Call("GET", "/test", nil, []byte("{\"foo\": \"hello\", \"Var2\": 42}"))
 	if err != nil {
