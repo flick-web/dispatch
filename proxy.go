@@ -82,7 +82,7 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	}
 	startTime := time.Now()
 	defer func() {
-		fmt.Printf("%v %s%s - %d %s", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode, response.Body)
+		fmt.Printf("%v %s%s - %d %s\n", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode, response.Body)
 	}()
 	writeError := func(error string, code int) {
 		response.StatusCode = code
@@ -90,11 +90,12 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	}
 
 	response.Headers["Access-Control-Allow-Origin"] = "*"
-	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+	response.Headers["Access-Control-Allow-Headers"] = "Authorization"
 
 	if r.HTTPMethod == "OPTIONS" {
 		validMethods := api.GetMethodsForPath(r.Path)
 		response.Headers["Access-Control-Allow-Methods"] = strings.Join(validMethods, ", ")
+		response.StatusCode = http.StatusOK
 		return response, nil
 	}
 
