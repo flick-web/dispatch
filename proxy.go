@@ -90,7 +90,7 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	}
 
 	response.Headers["Access-Control-Allow-Origin"] = "*"
-	response.Headers["Access-Control-Allow-Headers"] = "Authorization"
+	response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
 	if r.HTTPMethod == "OPTIONS" {
 		validMethods := api.GetMethodsForPath(r.Path)
