@@ -84,9 +84,9 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	defer func() {
 		fmt.Printf("%v %s%s - %d %s\n", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode, response.Body)
 	}()
-	writeError := func(error string, code int) {
+	writeError := func(err string, code int) {
+		response.Body = err
 		response.StatusCode = code
-		response.Body = http.StatusText(code)
 	}
 
 	response.Headers["Access-Control-Allow-Origin"] = "*"
@@ -104,22 +104,24 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	ctx := &Context{LambdaRequest: r, LambdaResponse: response}
 	output, err := api.Call(r.HTTPMethod, r.Path, ctx, data)
 	if err != nil {
-		if err == ErrorNotFound {
+		if apiErr, ok := err.(*APIError); ok {
+			writeError(apiErr.Error(), apiErr.StatusCode)
+		} else if err == ErrorNotFound {
 			writeError(err.Error(), http.StatusNotFound)
 		} else if err == ErrorBadRequest {
 			writeError(err.Error(), http.StatusBadRequest)
 		} else {
 			writeError(err.Error(), http.StatusInternalServerError)
 		}
-		return response, err
+		return response, nil
 	}
 	outBytes, err := json.Marshal(output)
 	if err != nil {
 		writeError(err.Error(), http.StatusInternalServerError)
-		return response, err
+		return response, nil
 	}
 	response.Headers["Content-Type"] = "application/json"
 	response.Body = string(outBytes)
 	response.StatusCode = http.StatusOK
-	return response, err
+	return response, nil
 }

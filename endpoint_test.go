@@ -13,6 +13,7 @@ func TestEndpoints(t *testing.T) {
 	api.AddEndpoint("PUT/test", testEndpointHandler)
 	api.AddEndpoint("DELETE/tests", testEndpointHandler)
 	api.AddEndpoint("DELETE/test/{id}", testEndpointHandler)
+	api.AddEndpoint("GET/apiErrorTest", testAPIErrors)
 
 	methods := api.GetMethodsForPath("/test")
 	if (methods[0] != "GET" && methods[0] != "PUT") || (methods[1] != "GET" && methods[1] != "PUT") {
@@ -36,6 +37,11 @@ func TestEndpoints(t *testing.T) {
 
 	_, err = api.Call("GET", "/test", nil, []byte("{\"foo\": \"PANIC\", \"Var2\": 42}"))
 	if err.Error() != "PANICKING" {
+		t.Error(err)
+	}
+
+	_, err = api.Call("GET", "/apiErrorTest", nil, nil)
+	if err.Error() != "I'm a teapot" {
 		t.Error(err)
 	}
 }
@@ -102,4 +108,8 @@ func middlewareHook(input *EndpointInput) (*EndpointInput, error) {
 		return nil, errors.New("ERROR")
 	}
 	return input, nil
+}
+
+func testAPIErrors() *APIError {
+	return NewAPIError(418, "I'm a teapot")
 }

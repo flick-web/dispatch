@@ -61,7 +61,7 @@ A handler function's **output** signature is slightly more restricted:
 - `(<AnyType>)`
 - `(<AnyType>, error)` (order **does** matter)
 
-If your function returns an error, the handler provided by the `api` package will automatically return an HTTP error. `dispatch.ErrorNotFound` and `dispatch.ErrorBadRequest` errors will also be accompianied by correct HTTP status codes. Otherwise, dispatch will simply return status 500 and the text of your error.
+If your function returns a `*dispatch.APIError`, its status code and error message will be used for the response. If your function returns a plain error, the handler provided by the `api` package will automatically return an HTTP error. `dispatch.ErrorNotFound` and `dispatch.ErrorBadRequest` errors will also be accompanied by correct HTTP status codes. Otherwise, dispatch will simply return status 500 and the text of your error.
 
 ## Middleware
 
