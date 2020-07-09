@@ -24,7 +24,7 @@ func (api *API) HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	wroteStatus := http.StatusText(200)
 	startTime := time.Now()
 	defer func() {
-		fmt.Printf("%v %s%s - %d %s", time.Since(startTime), r.Method, r.URL.Path, wroteHeader, wroteStatus)
+		fmt.Printf("%v %s%s - %d %s\n", time.Since(startTime), r.Method, r.URL.Path, wroteHeader, wroteStatus)
 	}()
 	writeError := func(w http.ResponseWriter, error string, code int) {
 		wroteHeader = code
