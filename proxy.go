@@ -82,7 +82,7 @@ func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewa
 	}
 	startTime := time.Now()
 	defer func() {
-		fmt.Printf("%v %s%s - %d %s\n", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode, response.Body)
+		fmt.Printf("%v %s%s - %d\n", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode)
 	}()
 	writeError := func(err string, code int) {
 		response.Body = err
