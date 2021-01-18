@@ -26,7 +26,7 @@ func rootHandler(ctx *dispatch.Context) string {
 func main() {
 	api := &dispatch.API{}
 	api.AddEndpoint("GET/{name}", rootHandler)
-	http.HandleFunc("/", api.GetHandler())
+	http.HandleFunc("/", api.HTTPProxy)
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
 ```
