@@ -48,11 +48,12 @@ func (api *API) HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	ctx := &Context{Request: r, Writer: w}
 	output, err := api.Call(r.Method, r.URL.Path, ctx, data)
 	if err != nil {
-		if err == ErrorNotFound {
+		switch err {
+		case ErrNotFound:
 			writeError(w, err.Error(), http.StatusNotFound)
-		} else if err == ErrorBadRequest {
+		case ErrBadRequest:
 			writeError(w, err.Error(), http.StatusBadRequest)
-		} else {
+		default:
 			writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
@@ -66,62 +67,91 @@ func (api *API) HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	w.Write(outBytes)
 }
 
-// LambdaProxy is a handler function suitable for use with github.com/aws/aws-lambda-go/lambda.
+// LambdaProxy returns a handler function suitable for use with github.com/aws/aws-lambda-go/lambda.
 // For example:
 //
 //	import "github.com/aws/aws-lambda-go/lambda"
 //	func main() {
-//		lambda.Start(api.LambdaProxy)
+//		lambda.Start(api.LambdaProxy("*"))
 //	}
 //
 // The provided handler takes care of access control headers, CORS requests,
 // JSON marshalling, and error handling.
-func (api *API) LambdaProxy(r *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
-	response := &events.APIGatewayProxyResponse{
-		Headers: make(map[string]string),
-	}
-	startTime := time.Now()
-	defer func() {
-		fmt.Printf("%v %s%s - %d\n", time.Since(startTime), r.HTTPMethod, r.Path, response.StatusCode)
-	}()
-	writeError := func(err string, code int) {
-		response.Body = err
-		response.StatusCode = code
-	}
+func (api *API) LambdaProxy(corsAllowedOrigin string) func(*events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	return func(apr *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+		response := &events.APIGatewayProxyResponse{
+			Headers: make(map[string]string),
+		}
+		startTime := time.Now()
+		defer func() {
+			fmt.Printf("%v %s%s - %d\n", time.Since(startTime), apr.HTTPMethod, apr.Path, response.StatusCode)
+		}()
+		writeError := func(err string, code int) {
+			response.Body = err
+			response.StatusCode = code
+		}
 
-	response.Headers["Access-Control-Allow-Origin"] = "*"
-	response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+		response.Headers["Access-Control-Allow-Origin"] = corsAllowedOrigin
+		response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
-	if r.HTTPMethod == "OPTIONS" {
-		validMethods := api.GetMethodsForPath(r.Path)
-		response.Headers["Access-Control-Allow-Methods"] = strings.Join(validMethods, ", ")
+		if apr.HTTPMethod == "OPTIONS" {
+			validMethods := api.GetMethodsForPath(apr.Path)
+			response.Headers["Access-Control-Allow-Methods"] = strings.Join(validMethods, ", ")
+			response.StatusCode = http.StatusOK
+			return response, nil
+		}
+
+		data := []byte(apr.Body)
+
+		ctx := &Context{LambdaRequest: apr, LambdaResponse: response}
+		output, err := api.Call(apr.HTTPMethod, apr.Path, ctx, data)
+		if err != nil {
+			if apiErr, ok := err.(*APIError); ok {
+				writeError(apiErr.Error(), apiErr.StatusCode)
+				return response, nil
+			}
+			switch err {
+			case ErrNotFound:
+				writeError(err.Error(), http.StatusNotFound)
+			case ErrBadRequest:
+				writeError(err.Error(), http.StatusBadRequest)
+			default:
+				writeError(err.Error(), http.StatusInternalServerError)
+			}
+			return response, nil
+		}
+		outBytes, err := json.Marshal(output)
+		if err != nil {
+			writeError(err.Error(), http.StatusInternalServerError)
+			return response, nil
+		}
+		response.Headers["Content-Type"] = "application/json"
+		response.Body = string(outBytes)
 		response.StatusCode = http.StatusOK
 		return response, nil
 	}
+}
 
-	data := []byte(r.Body)
-
-	ctx := &Context{LambdaRequest: r, LambdaResponse: response}
-	output, err := api.Call(r.HTTPMethod, r.Path, ctx, data)
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			writeError(apiErr.Error(), apiErr.StatusCode)
-		} else if err == ErrorNotFound {
-			writeError(err.Error(), http.StatusNotFound)
-		} else if err == ErrorBadRequest {
-			writeError(err.Error(), http.StatusBadRequest)
-		} else {
-			writeError(err.Error(), http.StatusInternalServerError)
-		}
-		return response, nil
+// APIGatewayUserID returns the subject from the proxy request's authorizer.
+func APIGatewayUserID(ctx events.APIGatewayProxyRequestContext) string {
+	if ctx.Authorizer == nil {
+		return ""
 	}
-	outBytes, err := json.Marshal(output)
-	if err != nil {
-		writeError(err.Error(), http.StatusInternalServerError)
-		return response, nil
+	claims := ctx.Authorizer["claims"]
+	if claims == nil {
+		return ""
 	}
-	response.Headers["Content-Type"] = "application/json"
-	response.Body = string(outBytes)
-	response.StatusCode = http.StatusOK
-	return response, nil
+	claimsMap, ok := claims.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	userID := claimsMap["sub"]
+	if userID == nil {
+		return ""
+	}
+	id, ok := userID.(string)
+	if !ok {
+		return ""
+	}
+	return id
 }

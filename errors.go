@@ -31,11 +31,11 @@ func (apiErr *APIError) Error() string {
 	return apiErr.ErrorText
 }
 
-// ErrorBadRequest represents an error from a malformed request.
-var ErrorBadRequest = errors.New("Bad request")
+// ErrBadRequest represents an error from a malformed request.
+var ErrBadRequest = errors.New("bad request")
 
-// ErrorNotFound represents a 404 error.
-var ErrorNotFound = errors.New("Path not found")
+// ErrNotFound represents a 404 error.
+var ErrNotFound = errors.New("path not found")
 
-// ErrorInternal represents some unexpected internal error.
-var ErrorInternal = errors.New("Internal error")
+// ErrInternal represents some unexpected internal error.
+var ErrInternal = errors.New("internal error")

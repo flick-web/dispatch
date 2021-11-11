@@ -20,7 +20,7 @@ func NewAPIPath(path string) (*APIPath, error) {
 	parts := strings.Split(path, "/")
 	// path must have at least a method and one slash
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("Invalid path: %s", path)
+		return nil, fmt.Errorf("invalid path: %s", path)
 	}
 	return &APIPath{
 		Method:    parts[0],

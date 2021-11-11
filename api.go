@@ -2,21 +2,13 @@ package dispatch
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"reflect"
 	"runtime/debug"
 
 	"github.com/aws/aws-lambda-go/events"
-
-	"github.com/dgrijalva/jwt-go"
 )
-
-// Claims stores the set of user claims for JWTs.
-type Claims struct {
-	jwt.StandardClaims
-}
 
 // Context represents data about the endpoint call, such as path variables, the
 // calling user, and requests and responses.
@@ -33,7 +25,6 @@ type Context struct {
 
 	// PathVars is the map of path variable names to values.
 	PathVars PathVars
-	Claims   *Claims
 }
 
 // API is an object that holds all API methods and can dispatch them.
@@ -74,7 +65,7 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 			log.Printf("API.Call panic: %v\n", r)
 			debug.PrintStack()
 			out = nil
-			err = errors.New("Internal error")
+			err = ErrInternal
 		}
 	}()
 
@@ -84,7 +75,7 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 
 	endpoint, pathVars := api.MatchEndpoint(method, path)
 	if endpoint == nil {
-		return nil, ErrorNotFound
+		return nil, ErrNotFound
 	}
 	ctx.PathVars = pathVars
 
@@ -103,13 +94,13 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 	handlerType := reflect.TypeOf(endpoint.Handler)
 	if handlerType.Kind() != reflect.Func {
 		log.Printf("Bad handler type for %s: %s\n", endpoint.Path, handlerType.Kind())
-		return nil, ErrorInternal
+		return nil, ErrInternal
 	}
 
 	// Handler functions can take a custom value type and/or a context input
 	if handlerType.NumIn() > 2 {
 		log.Printf("Handler %s takes too many args\n", endpoint.Path)
-		return nil, ErrorInternal
+		return nil, ErrInternal
 	}
 	var inputType reflect.Type
 	var takesContext, takesCustom, ctxPointer bool
@@ -159,23 +150,11 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 		resultValues = handlerValue.Call(nil)
 	}
 
-	if len(resultValues) > 2 {
-		log.Printf("Handler %s returned too many values\n", endpoint.Path)
-		return nil, ErrorInternal
-	}
+	switch len(resultValues) {
+	case 0:
+		return nil, nil
 
-	if len(resultValues) == 2 {
-		// If a value and error are returned, they must be in the order (out, error)
-		out = resultValues[0].Interface()
-		if errVal := resultValues[1].Interface(); errVal == nil {
-			err = nil
-		} else {
-			err = errVal.(error)
-		}
-		return
-	}
-
-	if len(resultValues) == 1 {
+	case 1:
 		// Function may return _either_ an error or a value
 		retval := resultValues[0].Interface()
 		// If nil, it doesn't matter
@@ -189,7 +168,19 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 		}
 		// Otherwise, assume it's data
 		return retval, nil
-	}
 
-	return nil, nil
+	case 2:
+		// If a value and error are returned, they must be in the order (out, error)
+		out = resultValues[0].Interface()
+		if errVal := resultValues[1].Interface(); errVal == nil {
+			err = nil
+		} else {
+			err = errVal.(error)
+		}
+		return out, err
+
+	default:
+		log.Printf("Handler %s returned too many values\n", endpoint.Path)
+		return nil, ErrInternal
+	}
 }
