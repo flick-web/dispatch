@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -45,8 +46,9 @@ func (api *API) HTTPProxy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	ctx := &Context{Request: r, Writer: w}
-	output, err := api.Call(r.Method, r.URL.Path, ctx, data)
+	// TODO: Limit each call with timeout
+	ctx := context.Background()
+	output, err := api.Call(ctx, r.Method, r.URL.Path, data)
 	if err != nil {
 		switch err {
 		case ErrNotFound:
@@ -103,8 +105,11 @@ func (api *API) LambdaProxy(corsAllowedOrigin string) func(*events.APIGatewayPro
 
 		data := []byte(apr.Body)
 
-		ctx := &Context{LambdaRequest: apr, LambdaResponse: response}
-		output, err := api.Call(apr.HTTPMethod, apr.Path, ctx, data)
+		// TODO: Limit each call with timeout
+		ctx := context.Background()
+		ctx = SetContextLambdaRequest(ctx, apr)
+		ctx = SetContextLambdaResponse(ctx, response)
+		output, err := api.Call(ctx, apr.HTTPMethod, apr.Path, data)
 		if err != nil {
 			if apiErr, ok := err.(*APIError); ok {
 				writeError(apiErr.Error(), apiErr.StatusCode)

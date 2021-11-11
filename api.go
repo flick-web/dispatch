@@ -1,31 +1,12 @@
 package dispatch
 
 import (
+	"context"
 	"encoding/json"
 	"log"
-	"net/http"
 	"reflect"
 	"runtime/debug"
-
-	"github.com/aws/aws-lambda-go/events"
 )
-
-// Context represents data about the endpoint call, such as path variables, the
-// calling user, and requests and responses.
-type Context struct {
-	// Request is the original http request.
-	Request *http.Request
-	// Writer is the original response writer.
-	Writer http.ResponseWriter
-
-	// LambdaRequest is the original request for LambdaProxy requests.
-	LambdaRequest *events.APIGatewayProxyRequest
-	// LambdaResponse is the constructed response object for LambdaProxy requests.
-	LambdaResponse *events.APIGatewayProxyResponse
-
-	// PathVars is the map of path variable names to values.
-	PathVars PathVars
-}
 
 // API is an object that holds all API methods and can dispatch them.
 type API struct {
@@ -58,7 +39,7 @@ func (api *API) GetMethodsForPath(path string) []string {
 }
 
 // Call sends the input to the endpoint and returns the result.
-func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (out interface{}, err error) {
+func (api *API) Call(ctx context.Context, method, path string, input json.RawMessage) (out interface{}, err error) {
 	// Recover from any panics, and return an internal error in that case
 	defer func() {
 		if r := recover(); r != nil {
@@ -69,15 +50,11 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 		}
 	}()
 
-	if ctx == nil {
-		ctx = &Context{}
-	}
-
 	endpoint, pathVars := api.MatchEndpoint(method, path)
 	if endpoint == nil {
 		return nil, ErrNotFound
 	}
-	ctx.PathVars = pathVars
+	ctx = SetContextPathVars(ctx, pathVars)
 
 	for _, hook := range endpoint.PreRequestHooks {
 		originalInput := &EndpointInput{method, path, ctx, input}
@@ -103,18 +80,23 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 		return nil, ErrInternal
 	}
 	var inputType reflect.Type
-	var takesContext, takesCustom, ctxPointer bool
+	var takesContext, takesCustom bool
 	var ctxIndex, customIndex int
 	for i := 0; i < handlerType.NumIn(); i++ {
 		inType := handlerType.In(i)
-		if inType == reflect.TypeOf(Context{}) {
+		ctxType := reflect.TypeOf((*context.Context)(nil)).Elem()
+		if inType.Implements(ctxType) {
+			if takesContext {
+				log.Printf("Handler %s takes multiple context inputs", endpoint.Path)
+				return nil, ErrInternal
+			}
 			takesContext = true
-			ctxIndex = i
-		} else if inType == reflect.TypeOf(&Context{}) {
-			takesContext = true
-			ctxPointer = true
 			ctxIndex = i
 		} else {
+			if takesCustom {
+				log.Printf("Handler %s takes multiple inputs", endpoint.Path)
+				return nil, ErrInternal
+			}
 			takesCustom = true
 			customIndex = i
 			inputType = handlerType.In(i)
@@ -128,11 +110,7 @@ func (api *API) Call(method, path string, ctx *Context, input json.RawMessage) (
 		// Can return any interface and/or an error
 		inputList := make([]reflect.Value, handlerType.NumIn())
 		if takesContext {
-			if ctxPointer {
-				inputList[ctxIndex] = reflect.ValueOf(ctx)
-			} else {
-				inputList[ctxIndex] = reflect.ValueOf(*ctx)
-			}
+			inputList[ctxIndex] = reflect.ValueOf(ctx)
 		}
 		if takesCustom {
 			inputVal := reflect.New(inputType)

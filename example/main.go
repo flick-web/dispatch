@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,8 +9,8 @@ import (
 	"github.com/flick-web/dispatch"
 )
 
-func rootHandler(ctx *dispatch.Context) string {
-	return fmt.Sprintf("Hello, %s!", ctx.PathVars["name"])
+func rootHandler(ctx context.Context) string {
+	return fmt.Sprintf("Hello, %s!", dispatch.ContextPathVars(ctx)["name"])
 }
 
 func main() {

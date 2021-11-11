@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 )
@@ -37,7 +38,7 @@ type Endpoint struct {
 type EndpointInput struct {
 	Method string
 	Path   string
-	Ctx    *Context
+	Ctx    context.Context
 	Input  json.RawMessage
 }
 
